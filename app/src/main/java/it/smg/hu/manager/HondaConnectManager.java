@@ -107,7 +107,35 @@ public class HondaConnectManager {
 
     private void dispatchSteeringWheelKey(int keyType){
         if (steeringWheelKeyListener_ != null) {
-            steeringWheelKeyListener_.onSteeringWheelKey(keyType);
+            steeringWheelKeyListener_.onSteeringWheelKey(normalizeSteeringKeyType(keyType));
+        }
+    }
+
+    /**
+     * Normaliza o código de tecla do volante recebido dos serviços Honda para o
+     * espaço {@code KEYCODE_STRG_*} (0xFFFFxxxx) usado pelo keymap. Alguns
+     * firmwares entregam {@code MODE_KEY_CMD_STRG_*} (2..21) no lugar de
+     * {@code KEYCODE_STRG_*}; aqui tratamos como fallback.
+     */
+    private int normalizeSteeringKeyType(int keyType){
+        switch (keyType) {
+            case ModeMgrManager.MODE_KEY_CMD_STRG_VOL_UP:
+            case ModeMgrManager.MODE_KEY_CMD_STRG_VOL_UP_L:
+                return ModeMgrManager.KEYCODE_STRG_VOLUME_UP;
+            case ModeMgrManager.MODE_KEY_CMD_STRG_VOL_DOWN:
+            case ModeMgrManager.MODE_KEY_CMD_STRG_VOL_DOWN_L:
+                return ModeMgrManager.KEYCODE_STRG_VOLUME_DOWN;
+            case ModeMgrManager.MODE_KEY_CMD_STRG_CH_UP:
+            case ModeMgrManager.MODE_KEY_CMD_STRG_CH_UP_L:
+                return ModeMgrManager.KEYCODE_STRG_CH_UP;
+            case ModeMgrManager.MODE_KEY_CMD_STRG_CH_DOWN:
+            case ModeMgrManager.MODE_KEY_CMD_STRG_CH_DOWN_L:
+                return ModeMgrManager.KEYCODE_STRG_CH_DOWN;
+            case ModeMgrManager.MODE_KEY_CMD_STRG_SOURCE:
+            case ModeMgrManager.MODE_KEY_CMD_STRG_SOURCE_L:
+                return ModeMgrManager.KEYCODE_STRG_SOURCE;
+            default:
+                return keyType;
         }
     }
 
