@@ -34,6 +34,16 @@ public class HondaConnectManager {
 //        public static final String MODEMGR_KEY_CALLBACK = "MODEMGR KEY CALLBACK";
     }
 
+    /**
+     * Recebe eventos de tecla do volante (AVANÇAR/VOLTAR faixa, volume, source, etc.)
+     * vindos dos serviços Honda (SteeringMenuService / ModeMgr SW key event).
+     * O {@link it.smg.hu.projection.InputDevice} registra-se aqui para converter
+     * esses eventos em comandos Android Auto (NEXT/PREV) e volume.
+     */
+    public interface SteeringWheelKeyListener {
+        void onSteeringWheelKey(int keyType);
+    }
+
     public static class  AudioStreamType {
         public static final int ADA_NORMAL = 11;
         public static final int ADA_INTERRUPT = 12;
@@ -79,6 +89,8 @@ public class HondaConnectManager {
     private ProcessControl pControl_;
 //    private CountDownLatch waitCond_;
 
+    private SteeringWheelKeyListener steeringWheelKeyListener_;
+
     private final Handler mainHandler_;
 
     public static void init(Context context){
@@ -87,6 +99,16 @@ public class HondaConnectManager {
 
     public static HondaConnectManager instance(){
         return instance_;
+    }
+
+    public void setSteeringWheelKeyListener(SteeringWheelKeyListener listener){
+        steeringWheelKeyListener_ = listener;
+    }
+
+    private void dispatchSteeringWheelKey(int keyType){
+        if (steeringWheelKeyListener_ != null) {
+            steeringWheelKeyListener_.onSteeringWheelKey(keyType);
+        }
     }
 
     @SuppressLint("WrongConstant")
@@ -277,6 +299,7 @@ public class HondaConnectManager {
 
         bindToEcNcService();
         bindToWheelService();
+        registerSWKeyEventCallback();
 
     }
 
@@ -321,6 +344,7 @@ public class HondaConnectManager {
             unregisterModeMgrCallback();
         }
 
+        unregisterSWKeyEventCallback();
         unregisterSteeringMenuCallback();
         unbindToWheelService();
     }
@@ -487,6 +511,35 @@ public class HondaConnectManager {
         modeMgrServiceCallBack_ = null;
     }
 
+    private void registerSWKeyEventCallback(){
+        if (modeMgrManager_ != null && modeMgrServiceSWKeyEventCallBack_ == null) {
+            int idx = settings_.advanced.steeringWheelIdx();
+            if (Log.isVerbose()) Log.v(TAG, "registerModeMgrSWKeyEventCallback idx " + idx);
+            try {
+                modeMgrServiceSWKeyEventCallBack_ = new ModeMgrServiceSWKeyEventCallBack();
+                int ret = modeMgrManager_.registerModeMgrSWKeyEventCallback(idx, modeMgrServiceSWKeyEventCallBack_);
+                if (Log.isDebug()) Log.d(TAG, "registerModeMgrSWKeyEventCallback ret " + ret);
+            } catch (Exception e) {
+                Log.e(TAG, "error registering SW key event callback", e);
+                modeMgrServiceSWKeyEventCallBack_ = null;
+            }
+        }
+    }
+
+    private void unregisterSWKeyEventCallback(){
+        if (modeMgrManager_ != null && modeMgrServiceSWKeyEventCallBack_ != null) {
+            int idx = settings_.advanced.steeringWheelIdx();
+            if (Log.isVerbose()) Log.v(TAG, "unregisterModeMgrSWKeyEventCallback idx " + idx);
+            try {
+                int ret = modeMgrManager_.unregisterModeMgrSWKeyEventCallback(idx);
+                if (Log.isDebug()) Log.d(TAG, "unregisterModeMgrSWKeyEventCallback ret " + ret);
+            } catch (Exception e) {
+                Log.e(TAG, "error unregistering SW key event callback", e);
+            }
+            modeMgrServiceSWKeyEventCallBack_ = null;
+        }
+    }
+
     private void registerModeMgrCallback(){
         if (Log.isDebug()) Log.d(TAG, "registerModeMgrCallback");
         if (modeMgrManager_ != null) {
@@ -533,7 +586,17 @@ public class HondaConnectManager {
 
         public boolean onSteeringSWDown(int keytype) {
             if (Log.isVerbose()) Log.v(TAG, "onSteeringSWDown " + keytype);
+            dispatchSteeringWheelKey(keytype);
             return true;
+        }
+    };
+
+    private class ModeMgrServiceSWKeyEventCallBack extends IModeMgrServiceSWKeyEventCallBack.Stub {
+        private static final String TAG = "HondaConnectManager-ModeMgrSWKeyEventCallBack";
+
+        public void rcvStrgKeyEvent(int keytype, int value) throws RemoteException {
+            if (Log.isVerbose()) Log.v(TAG, "rcvStrgKeyEvent keytype=" + keytype + " value=" + value);
+            dispatchSteeringWheelKey(keytype);
         }
     };
 

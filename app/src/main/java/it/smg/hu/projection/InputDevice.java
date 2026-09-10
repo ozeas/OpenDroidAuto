@@ -20,7 +20,7 @@ import it.smg.hu.manager.HondaConnectManager;
 import it.smg.hu.ui.settings.KeymapFragment;
 import it.smg.libs.common.Log;
 
-public class InputDevice extends it.smg.libs.aasdk.projection.InputDevice implements View.OnTouchListener, View.OnKeyListener {
+public class InputDevice extends it.smg.libs.aasdk.projection.InputDevice implements View.OnTouchListener, View.OnKeyListener, HondaConnectManager.SteeringWheelKeyListener {
     private static final String TAG = "InputDevice";
 
     private final Rect screenGeometry_;
@@ -83,6 +83,10 @@ public class InputDevice extends it.smg.libs.aasdk.projection.InputDevice implem
         }
 
         if (Log.isDebug()) Log.d(TAG, "supported button codes: " + supportedButtonCodes_);
+
+        if (settings.advanced.hondaIntegrationEnabled()) {
+            HondaConnectManager.instance().setSteeringWheelKeyListener(this);
+        }
     }
 
     @Keep
@@ -96,6 +100,9 @@ public class InputDevice extends it.smg.libs.aasdk.projection.InputDevice implem
     public void stop() {
         if (Log.isInfo()) Log.i(TAG, "stop");
         releaseFocus();
+        if (Settings.instance().advanced.hondaIntegrationEnabled()) {
+            HondaConnectManager.instance().setSteeringWheelKeyListener(null);
+        }
         surfaceView_ = null;
         keyHolder_ = null;
     }
@@ -173,35 +180,51 @@ public class InputDevice extends it.smg.libs.aasdk.projection.InputDevice implem
 
     @Override
     public boolean onKey(View v, int keyCode, KeyEvent event) {
-        if (supportedButtonCodes_ != null && supportedButtonCodes_.containsKey(keyCode)) {
-            int button = supportedButtonCodes_.get(keyCode);
-            if (Log.isVerbose()) Log.v(TAG, "found supported button " + button + "/" + keyCode);
-            if (Log.isDebug()) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(context_, "event key: " + keyCode + " action: " + event.getAction() + " -> button: " + button, Toast.LENGTH_SHORT).show();
-                });
-            }
+        boolean handled = handleKey(keyCode, event.getAction());
+        if (handled && Log.isDebug()) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                Toast.makeText(context_, "event key: " + keyCode + " action: " + event.getAction(), Toast.LENGTH_SHORT).show();
+            });
+        }
+        return handled;
+    }
 
-            final int plusKeyCode = Settings.instance().keymap.key(KeymapFragment.KeyMap.PLUS.keyName() + "_code");
-            final int minusKeyCode = Settings.instance().keymap.key(KeymapFragment.KeyMap.MINUS.keyName() + "_code");
+    /**
+     * Recebe eventos de tecla do volante vindos dos serviços Honda (AIDL) e
+     * faz o mesmo tratamento de {@link #onKey} (música NEXT/PREV e volume +/-).
+     */
+    @Override
+    public void onSteeringWheelKey(int keyType) {
+        if (Log.isVerbose()) Log.v(TAG, "onSteeringWheelKey " + keyType);
+        // Um pressionamento do volante equivale a um toque completo (DOWN + UP).
+        handleKey(keyType, KeyEvent.ACTION_DOWN);
+        handleKey(keyType, KeyEvent.ACTION_UP);
+    }
 
-            if (keyCode == plusKeyCode){
-                if (event.getAction() == KeyEvent.ACTION_DOWN) { // increase/decrease volume only on action down to prevent double increase/decrease
-                    HondaConnectManager.instance().increaseVolume();
-                }
-            } else if (keyCode == minusKeyCode) {
-                if (event.getAction() == KeyEvent.ACTION_DOWN) { // increase/decrease volume only on action down to prevent double increase/decrease
-                    HondaConnectManager.instance().decreaseVolume();
-                }
-            } else {
-                int action = event.getAction(); // 1 - UP, 0 - DOWN
-                sendButtonEvent(action, button);
-            }
-
-            return true;
+    private boolean handleKey(int keyCode, int action) {
+        if (supportedButtonCodes_ == null || !supportedButtonCodes_.containsKey(keyCode)) {
+            return false;
         }
 
-        return false;
+        int button = supportedButtonCodes_.get(keyCode);
+        if (Log.isVerbose()) Log.v(TAG, "found supported button " + button + "/" + keyCode);
+
+        final int plusKeyCode = Settings.instance().keymap.key(KeymapFragment.KeyMap.PLUS.keyName() + "_code");
+        final int minusKeyCode = Settings.instance().keymap.key(KeymapFragment.KeyMap.MINUS.keyName() + "_code");
+
+        if (keyCode == plusKeyCode){
+            if (action == KeyEvent.ACTION_DOWN) { // increase/decrease volume only on action down to prevent double increase/decrease
+                HondaConnectManager.instance().increaseVolume();
+            }
+        } else if (keyCode == minusKeyCode) {
+            if (action == KeyEvent.ACTION_DOWN) { // increase/decrease volume only on action down to prevent double increase/decrease
+                HondaConnectManager.instance().decreaseVolume();
+            }
+        } else {
+            sendButtonEvent(action, button);
+        }
+
+        return true;
     }
 
     public interface OnKeyHolder {
