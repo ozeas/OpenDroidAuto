@@ -1,6 +1,6 @@
 package it.smg.hu.projection;
 
-import android.media.AudioTrack;
+import android.media.AudioManager;
 
 import androidx.annotation.Keep;
 
@@ -25,7 +25,7 @@ public abstract class AudioOutput extends it.smg.libs.aasdk.projection.AudioOutp
             hondaConnectManager_ = HondaConnectManager.instance();
         }
 
-        audioCodecStreamType_ = AudioTrack.MODE_STREAM;
+        audioCodecStreamType_ = AudioManager.STREAM_MUSIC;
     }
 
     @Keep

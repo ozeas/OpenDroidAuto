@@ -1,5 +1,7 @@
 package it.smg.hu.projection;
 
+import android.media.AudioManager;
+
 import it.smg.libs.aasdk.messenger.ChannelId;
 
 public class SystemAudioOutput extends AudioOutput {
@@ -15,6 +17,8 @@ public class SystemAudioOutput extends AudioOutput {
 
         if (settings_.advanced.hondaIntegrationEnabled()){
             audioCodecStreamType_ = hondaConnectManager_.mediaAudioStream(ChannelId.SYSTEM_AUDIO);
+        } else {
+            audioCodecStreamType_ = AudioManager.STREAM_SYSTEM;
         }
     }
 
