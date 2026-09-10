@@ -36,8 +36,10 @@ public abstract class AudioService implements IService {
     @Keep
     @Override
     public void onError(String error, int code){
-        Log.v(tag(), "onError " + error + "/" + code);
-        eventHandler_.onAndroidAutoQuitOnError(error, code);
+        // Non-fatal: an audio channel error (e.g. during a phone call) must not
+        // tear down the whole session. Transport/control-channel errors still
+        // quit via the native AndroidAutoEntity path.
+        Log.w(tag(), "onError " + error + "/" + code);
     }
 
     protected abstract String tag();

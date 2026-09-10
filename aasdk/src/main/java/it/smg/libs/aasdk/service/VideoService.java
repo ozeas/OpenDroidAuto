@@ -43,8 +43,8 @@ public class VideoService implements IService {
     @Keep
     @Override
     public void onError(String error, int code){
-        Log.v(TAG, "onError " + error + "/" + code);
-        eventHandler_.onAndroidAutoQuitOnError(error, code);
+        // Non-fatal: a video channel error must not tear down the session.
+        Log.w(TAG, "onError " + error + "/" + code);
     }
 
     public void releaseFocus(){

@@ -65,6 +65,10 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     private boolean reconnecting_ = false;
     private static final int MAX_RECONNECT_ATTEMPTS = 3;
     private static final long RECONNECT_BASE_DELAY_MS = 2000;
+    // A session that survives this long without an error is considered stable;
+    // the reconnect budget resets so later isolated errors don't accumulate.
+    private static final long STABLE_WINDOW_MS = 30000;
+    private long lastErrorTimeMs_ = 0;
 
     private BroadcastReceiver usbDetachReceiver_;
 
@@ -317,6 +321,13 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
         mainHandler_.post(() -> {
             Toast.makeText(this, "Closed due to " + error + " error", Toast.LENGTH_LONG).show();
         });
+
+        long now = System.currentTimeMillis();
+        if (lastErrorTimeMs_ > 0 && now - lastErrorTimeMs_ > STABLE_WINDOW_MS) {
+            Log.i(TAG, "session was stable for " + (now - lastErrorTimeMs_) + "ms, resetting reconnect budget");
+            reconnectAttempts_ = 0;
+        }
+        lastErrorTimeMs_ = now;
 
         teardownEntity();
         scheduleReconnect();

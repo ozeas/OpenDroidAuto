@@ -18,7 +18,10 @@ public class SpeechAudioOutput extends AudioOutput {
         if (settings_.advanced.hondaIntegrationEnabled()){
             audioCodecStreamType_ = hondaConnectManager_.mediaAudioStream(ChannelId.SPEECH_AUDIO);
         } else {
-            audioCodecStreamType_ = AudioManager.STREAM_VOICE_CALL;
+            // SPEECH channel carries TTS/navigation/notifications (NOT call audio,
+            // which is routed via Bluetooth HFP). Mix with media instead of
+            // STREAM_VOICE_CALL to avoid conflicting with real calls.
+            audioCodecStreamType_ = AudioManager.STREAM_MUSIC;
         }
     }
 

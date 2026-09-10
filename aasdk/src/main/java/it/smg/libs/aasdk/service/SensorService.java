@@ -58,8 +58,8 @@ public class SensorService implements IService, ISensor.Listener {
     @Keep
     @Override
     public void onError(String error, int code){
-        Log.v(TAG, "onError " + error + "/" + code);
-        eventHandler_.onAndroidAutoQuitOnError(error, code);
+        // Non-fatal: a sensor channel error must not tear down the session.
+        Log.w(TAG, "onError " + error + "/" + code);
     }
 
     static {

@@ -39,8 +39,8 @@ public class InputService implements IService {
     @Keep
     @Override
     public void onError(String error, int code){
-        Log.v(TAG, "onError " + error + "/" + code);
-        eventHandler_.onAndroidAutoQuitOnError(error, code);
+        // Non-fatal: an input channel error must not tear down the session.
+        Log.w(TAG, "onError " + error + "/" + code);
     }
 
     public void releaseFocus(){
