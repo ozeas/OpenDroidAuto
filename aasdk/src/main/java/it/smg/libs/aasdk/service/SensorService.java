@@ -42,6 +42,19 @@ public class SensorService implements IService, ISensor.Listener {
         sendNightMode(isNight);
     }
 
+    @Override
+    public void onGpsUpdate(double latitude, double longitude, float accuracy, double altitude, float speed, float bearing, long timestampMillis) {
+        long timestampUs = timestampMillis * 1000L;
+        int latitudeE7 = (int) Math.round(latitude * 1E7);
+        int longitudeE7 = (int) Math.round(longitude * 1E7);
+        int accuracyM = (int) accuracy;
+        int altitudeM = (int) altitude;
+        int speedMps = (int) speed;
+        int bearingDeg = (int) bearing;
+
+        nativeSendGPSLocation(timestampUs, latitudeE7, longitudeE7, accuracyM, altitudeM, speedMps, bearingDeg);
+    }
+
     @Keep
     @Override
     public void onError(String error, int code){
@@ -59,6 +72,7 @@ public class SensorService implements IService, ISensor.Listener {
     private native void nativeStop();
     private native void nativeDelete();
     private native void sendNightMode(boolean isNight);
+    private native void nativeSendGPSLocation(long timestampUs, int latitude, int longitude, int accuracy, int altitude, int speed, int bearing);
 
     @Keep
     protected long handle_;

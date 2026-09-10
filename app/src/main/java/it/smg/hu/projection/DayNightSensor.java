@@ -33,6 +33,14 @@ public class DayNightSensor implements ISensor, LocationListener {
         context_ = ctx;
         Settings settings = Settings.instance();
 
+        locationManager_ = (LocationManager) context_.getSystemService(Context.LOCATION_SERVICE);
+        // Always forward GPS fixes to the phone (throttled to ~1 Hz), independent of night mode.
+        try {
+            locationManager_.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 0, this);
+        } catch (SecurityException e) {
+            if (Log.isWarn()) Log.w(TAG, "cannot request GPS location updates: " + e.getMessage());
+        }
+
         switch (settings.video.nightMode()){
             case ISensor.NIGHT:
                 currentState_ = IS_NIGHT;
@@ -51,9 +59,6 @@ public class DayNightSensor implements ISensor, LocationListener {
 
     private void initTwilightCalculator(){
         twilightCalculator_ = new TwilightCalculator();
-
-        locationManager_ = (LocationManager) context_.getSystemService(Context.LOCATION_SERVICE);
-        locationManager_.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, this);
 
         Location l = getLastKnownLocation();
         if (l != null){
@@ -106,14 +111,21 @@ public class DayNightSensor implements ISensor, LocationListener {
     @Override
     public void onLocationChanged(@NonNull Location location) {
         if (Log.isVerbose()) Log.v(TAG, "time: " + System.currentTimeMillis() + ", lat: " + location.getLatitude() + ", log: " + location.getLongitude());
-        twilightCalculator_.calculateTwilight(System.currentTimeMillis(), location.getLatitude(), location.getLongitude());
+        if (twilightCalculator_ != null) {
+            twilightCalculator_.calculateTwilight(System.currentTimeMillis(), location.getLatitude(), location.getLongitude());
 
-        if (currentState_ != twilightCalculator_.mState){
-            if (Log.isInfo()) Log.i(TAG, "state changed, new state " + twilightCalculator_.mState);
-            currentState_ = twilightCalculator_.mState;
-            if (listener_ != null) {
-                listener_.onDayNightUpdate(isNight());
+            if (currentState_ != twilightCalculator_.mState){
+                if (Log.isInfo()) Log.i(TAG, "state changed, new state " + twilightCalculator_.mState);
+                currentState_ = twilightCalculator_.mState;
+                if (listener_ != null) {
+                    listener_.onDayNightUpdate(isNight());
+                }
             }
+        }
+
+        if (listener_ != null) {
+            listener_.onGpsUpdate(location.getLatitude(), location.getLongitude(), location.getAccuracy(),
+                    location.getAltitude(), location.getSpeed(), location.getBearing(), location.getTime());
         }
     }
 

@@ -16,5 +16,6 @@ public interface ISensor {
 
     interface Listener {
         void onDayNightUpdate(boolean isNight);
+        void onGpsUpdate(double latitude, double longitude, float accuracy, double altitude, float speed, float bearing, long timestampMillis);
     }
 }

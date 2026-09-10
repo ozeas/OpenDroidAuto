@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "channel/sensor/SensorServiceChannel.hpp"
 #include "IService.hpp"
 #include "IServiceEventHandler.h"
@@ -22,6 +24,8 @@ public:
     void onSensorStartRequest(const aasdk::proto::messages::SensorStartRequestMessage& request) override;
     void onChannelError(const aasdk::error::Error& e) override;
     void setNightMode(bool nightMode);
+    void sendGPSLocation(uint64_t timestamp, int32_t latitude, int32_t longitude, uint32_t accuracy,
+                         int32_t altitude, int32_t speed, int32_t bearing);
 
 private:
     using std::enable_shared_from_this<SensorService>::shared_from_this;

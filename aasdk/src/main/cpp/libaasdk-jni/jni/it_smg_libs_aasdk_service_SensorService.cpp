@@ -38,6 +38,17 @@ void JSensorService::sendNightMode(bool isNight) {
     sensorService_->setNightMode(isNight);
 }
 
+void JSensorService::sendGPSLocation(long long timestamp, int latitude, int longitude, int accuracy,
+                                     int altitude, int speed, int bearing) {
+    sensorService_->sendGPSLocation(static_cast<uint64_t>(timestamp),
+                                    static_cast<int32_t>(latitude),
+                                    static_cast<int32_t>(longitude),
+                                    static_cast<uint32_t>(accuracy),
+                                    static_cast<int32_t>(altitude),
+                                    static_cast<int32_t>(speed),
+                                    static_cast<int32_t>(bearing));
+}
+
 void JSensorService::start() {
     sensorService_->start();
 }
@@ -82,6 +93,15 @@ Java_it_smg_libs_aasdk_service_SensorService_sendNightMode(JNIEnv *env, jobject 
                                                           jboolean isnight) {
     JSensorService::Pointer jSensorService = JSensorService::getJSensorService(env, thiz);
     jSensorService->sendNightMode(isnight);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_it_smg_libs_aasdk_service_SensorService_nativeSendGPSLocation(JNIEnv *env, jobject thiz,
+                                                                   jlong timestamp, jint latitude, jint longitude,
+                                                                   jint accuracy, jint altitude, jint speed, jint bearing) {
+    JSensorService::Pointer jSensorService = JSensorService::getJSensorService(env, thiz);
+    jSensorService->sendGPSLocation(static_cast<long long>(timestamp), latitude, longitude, accuracy, altitude, speed, bearing);
 }
 
 extern "C"

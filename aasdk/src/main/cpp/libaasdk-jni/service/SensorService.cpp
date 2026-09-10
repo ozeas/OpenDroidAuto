@@ -1,6 +1,7 @@
 #include <Log.h>
 #include "SensorService.h"
 #include "proto/DrivingStatusEnum.pb.h"
+#include "proto/GPSLocationData.pb.h"
 #include "service/SensorService.h"
 
 namespace service
@@ -46,7 +47,7 @@ void SensorService::fillFeatures(aasdk::proto::messages::ServiceDiscoveryRespons
     channelDescriptor->set_channel_id(static_cast<uint32_t>(channel_->getId()));
     auto* sensorChannel = channelDescriptor->mutable_sensor_channel();
     sensorChannel->add_sensors()->set_type(aasdk::proto::enums::SensorType::DRIVING_STATUS);
-    //sensorChannel->add_sensors()->set_type(aasdk::proto::enums::SensorType::LOCATION);
+    sensorChannel->add_sensors()->set_type(aasdk::proto::enums::SensorType::LOCATION);
     sensorChannel->add_sensors()->set_type(aasdk::proto::enums::SensorType::NIGHT_DATA);
 
     if(Log::isVerbose() && Log::logProtocol()) Log_v("%s", channelDescriptor->Utf8DebugString().c_str());
@@ -134,6 +135,24 @@ void SensorService::setNightMode(bool nightMode)
 {
     nightMode_ = nightMode;
     this->sendNightData();
+}
+
+void SensorService::sendGPSLocation(uint64_t timestamp, int32_t latitude, int32_t longitude, uint32_t accuracy,
+                                    int32_t altitude, int32_t speed, int32_t bearing)
+{
+    aasdk::proto::messages::SensorEventIndication indication;
+    auto* gps = indication.add_gps_location();
+    gps->set_timestamp(timestamp);
+    gps->set_latitude(latitude);
+    gps->set_longitude(longitude);
+    gps->set_accuracy(accuracy);
+    gps->set_altitude(altitude);
+    gps->set_speed(speed);
+    gps->set_bearing(bearing);
+
+    auto promise = aasdk::channel::SendPromise::defer(strand_, "SensorService_gpsLocation");
+    promise->then([]() {}, std::bind(&SensorService::onChannelError, this->shared_from_this(), std::placeholders::_1));
+    channel_->sendSensorEventIndication(indication, std::move(promise));
 }
 
 }

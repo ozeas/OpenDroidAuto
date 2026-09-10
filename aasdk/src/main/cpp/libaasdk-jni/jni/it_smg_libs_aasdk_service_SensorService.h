@@ -20,6 +20,8 @@ public:
     IService::Pointer getService() override;
 
     void sendNightMode(bool isNight);
+    void sendGPSLocation(long long timestamp, int latitude, int longitude, int accuracy,
+                         int altitude, int speed, int bearing);
     void start();
     void stop();
     void onError(const aasdk::error::Error& e) override;
