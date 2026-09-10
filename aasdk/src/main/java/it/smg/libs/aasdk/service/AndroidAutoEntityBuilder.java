@@ -119,7 +119,7 @@ public class AndroidAutoEntityBuilder  {
     }
 
     public AndroidAutoEntity build(){
-        IPinger pinger = new Pinger(5000);
+        IPinger pinger = new Pinger(10000);
 
         return new AndroidAutoEntity(runtime_, cryptor_, transport_, messenger_, config_, serviceList_, pinger, threads_);
     }

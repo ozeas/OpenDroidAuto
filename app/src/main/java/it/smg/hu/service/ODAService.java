@@ -2,7 +2,11 @@ package it.smg.hu.service;
 
 import android.app.Notification;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.hardware.usb.UsbManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -54,6 +58,16 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
 
     private boolean isRunning_;
 
+    private SurfaceView surfaceView_;
+    private InputDevice.OnKeyHolder keyHolder_;
+    private String startMode_;
+    private int reconnectAttempts_ = 0;
+    private boolean reconnecting_ = false;
+    private static final int MAX_RECONNECT_ATTEMPTS = 3;
+    private static final long RECONNECT_BASE_DELAY_MS = 2000;
+
+    private BroadcastReceiver usbDetachReceiver_;
+
     public ODAService() {}
 
     @Override
@@ -69,9 +83,29 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
         mainHandler_ = new Handler(Looper.getMainLooper());
 
         localBroadcastManager_ = LocalBroadcastManager.getInstance(this);
+
+        usbDetachReceiver_ = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(intent.getAction()) && isRunning_) {
+                    if (Log.isInfo()) Log.i(TAG, "AOAP device detached, shutting down cleanly");
+                    reconnectAttempts_ = MAX_RECONNECT_ATTEMPTS;
+                    onAndroidAutoQuit();
+                }
+            }
+        };
+        IntentFilter detachFilter = new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED);
+        registerReceiver(usbDetachReceiver_, detachFilter);
     }
 
     public void startUsb(SurfaceView surfaceView, InputDevice.OnKeyHolder keyHolder){
+        surfaceView_ = surfaceView;
+        keyHolder_ = keyHolder;
+        startMode_ = MODE_USB;
+        if (!reconnecting_) {
+            reconnectAttempts_ = 0;
+        }
+
         startThread_ = new Thread(() -> {
             Looper.prepare();
 
@@ -103,6 +137,13 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     }
 
     public void startWifi(SurfaceView surfaceView, InputDevice.OnKeyHolder keyHolder){
+        surfaceView_ = surfaceView;
+        keyHolder_ = keyHolder;
+        startMode_ = MODE_WIFI;
+        if (!reconnecting_) {
+            reconnectAttempts_ = 0;
+        }
+
         startThread_ = new Thread(() -> {
             Looper.prepare();
 
@@ -164,6 +205,10 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
 
         startThread_ = null;
 
+        finishService();
+    }
+
+    private void finishService(){
         Intent stopIntent = new Intent(ODAService.STOP_ACTION);
         localBroadcastManager_.sendBroadcast(stopIntent);
 
@@ -178,6 +223,12 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
 
     public void onDestroy() {
         if (Log.isDebug()) Log.d(TAG, "onDestroy");
+        if (usbDetachReceiver_ != null) {
+            try {
+                unregisterReceiver(usbDetachReceiver_);
+            } catch (IllegalArgumentException ignored) {}
+            usbDetachReceiver_ = null;
+        }
     }
 
     @Override
@@ -203,6 +254,61 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
         stop();
     }
 
+    private void teardownEntity() {
+        if (androidAutoEntity_ != null) {
+            androidAutoEntity_.stop();
+            androidAutoEntity_.delete();
+            androidAutoEntity_ = null;
+        }
+        isRunning_ = false;
+        startThread_ = null;
+    }
+
+    private void scheduleReconnect() {
+        if (reconnectAttempts_ >= MAX_RECONNECT_ATTEMPTS) {
+            Log.e(TAG, "max reconnect attempts reached, stopping");
+            if (Settings.instance().advanced.hondaIntegrationEnabled()) {
+                HondaConnectManager.instance().endAudioBinding();
+            }
+            finishService();
+            return;
+        }
+
+        reconnectAttempts_++;
+        long delay = RECONNECT_BASE_DELAY_MS * (1L << (reconnectAttempts_ - 1));
+        Log.i(TAG, "scheduling reconnect attempt " + reconnectAttempts_ + "/" + MAX_RECONNECT_ATTEMPTS + " in " + delay + "ms (mode=" + startMode_ + ")");
+
+        mainHandler_.postDelayed(() -> {
+            reconnecting_ = true;
+            try {
+                if (MODE_USB.equals(startMode_)) {
+                    if (usbManager_.aoapDevice() == null) {
+                        usbManager_.searchForAoapDevice();
+                    }
+                    if (usbManager_.aoapDevice() != null) {
+                        startUsb(surfaceView_, keyHolder_);
+                    } else {
+                        Log.w(TAG, "no AOAP device available for reconnect, stopping");
+                        if (Settings.instance().advanced.hondaIntegrationEnabled()) {
+                            HondaConnectManager.instance().endAudioBinding();
+                        }
+                        finishService();
+                    }
+                } else if (MODE_WIFI.equals(startMode_)) {
+                    startWifi(surfaceView_, keyHolder_);
+                } else {
+                    Log.w(TAG, "unknown start mode for reconnect, stopping");
+                    if (Settings.instance().advanced.hondaIntegrationEnabled()) {
+                        HondaConnectManager.instance().endAudioBinding();
+                    }
+                    finishService();
+                }
+            } finally {
+                reconnecting_ = false;
+            }
+        }, delay);
+    }
+
     @Keep
     @Override
     public void onAndroidAutoQuitOnError(String error, int nativeErrorCode){
@@ -212,7 +318,8 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
             Toast.makeText(this, "Closed due to " + error + " error", Toast.LENGTH_LONG).show();
         });
 
-        stop();
+        teardownEntity();
+        scheduleReconnect();
     }
 
     @Keep

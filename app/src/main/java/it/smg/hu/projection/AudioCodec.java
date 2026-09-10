@@ -5,8 +5,8 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 
 import java.nio.ByteBuffer;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import it.smg.libs.common.Log;
@@ -22,7 +22,7 @@ public class AudioCodec implements IAudioCodec, Runnable {
     private final int sampleSize_;
     protected AtomicBoolean running_;
 
-    private final Queue<byte[]> queue_;
+    private final LinkedBlockingQueue<byte[]> queue_;
     private Thread codecThread_;
 
     public AudioCodec(String name, int streamType, int sampleRate, int channelConfig, int sampleSize){
@@ -33,7 +33,7 @@ public class AudioCodec implements IAudioCodec, Runnable {
         sampleSize_ = sampleSize;
         running_ = new AtomicBoolean(false);
 
-        queue_ = new ConcurrentLinkedQueue<>();
+        queue_ = new LinkedBlockingQueue<>();
     }
 
     private static int channels2num(int channels){
@@ -71,7 +71,7 @@ public class AudioCodec implements IAudioCodec, Runnable {
         final byte[] data = new byte[size];
         buffer.get(data);
 
-        queue_.add(data);
+        queue_.offer(data);
     }
 
     @Override
@@ -93,9 +93,11 @@ public class AudioCodec implements IAudioCodec, Runnable {
 
             if (codecThread_ != null){
                 try {
-                    codecThread_.join();
+                    codecThread_.join(1000);
                     if (Log.isDebug()) Log.d(TAG + "_" + codecThread_.getName(), "thread joined");
-                } catch (InterruptedException ignored) {}
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
                 codecThread_ = null;
             }
 
@@ -130,7 +132,13 @@ public class AudioCodec implements IAudioCodec, Runnable {
 
         if (Log.isVerbose()) Log.v(TAG + "_" + codecThread_.getName(), "running thread");
         while (running_.get()) {
-            byte[] data = queue_.poll();
+            byte[] data;
+            try {
+                data = queue_.poll(50, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
             if (data != null){
                 audioTrack_.write(data, 0, data.length);
             }

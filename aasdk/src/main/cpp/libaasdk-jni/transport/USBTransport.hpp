@@ -27,7 +27,7 @@ private:
     usb::IAOAPDevice::Pointer aoapDevice_;
 
     static constexpr uint32_t cSendTimeoutMs = 10000;
-    static constexpr uint32_t cReceiveTimeoutMs = 0;
+    static constexpr uint32_t cReceiveTimeoutMs = 15000;
 };
 
 }
