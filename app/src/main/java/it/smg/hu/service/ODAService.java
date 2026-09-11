@@ -35,6 +35,7 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     public static final String START_ACTION = "it.smg.hu.service.ODAService.START_ACTION";
     public static final String STOP_ACTION = "it.smg.hu.service.ODAService.STOP_ACTION";
     public static final String STOP_VIDEO_INDICATION = "it.smg.hu.service.ODAService.STOP_VIDEO_INDICATION";
+    public static final String START_VIDEO_INDICATION = "it.smg.hu.service.ODAService.START_VIDEO_INDICATION";
     public static final String FORCE_CLOSE_ACTION = "it.smg.hu.service.ODAService.FORCE_CLOSE_ACTION";
 
     public static final String EXTRA_START_MODE = "startMode";
@@ -337,6 +338,14 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
 
         teardownEntity();
         scheduleReconnect();
+    }
+
+    @Keep
+    @Override
+    public void onAVChannelStartIndication() {
+        if (Log.isInfo()) Log.i(TAG, "start video indication");
+        Intent startIntent = new Intent(ODAService.START_VIDEO_INDICATION);
+        localBroadcastManager_.sendBroadcast(startIntent);
     }
 
     @Keep

@@ -87,6 +87,7 @@ void VideoService::onAVChannelStartIndication(const aasdk::proto::messages::AVCh
     if(Log::isDebug()) Log_d("start indication, session: %d", indication.session());
 
     session_ = indication.session();
+    eventHandler_->onAVChannelStartIndication();
 
 //    channel_->receive(this->shared_from_this());
 }

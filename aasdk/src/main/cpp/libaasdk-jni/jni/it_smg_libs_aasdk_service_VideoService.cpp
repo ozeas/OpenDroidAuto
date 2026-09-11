@@ -18,9 +18,15 @@ void JVideoEventHandler::initJavaMethods() {
     JNIEnv* env = getJniEnv();
     jclass cls = env->GetObjectClass(androidClass_);
 
+    onAVChannelStartIndicationMethodId_ = env->GetMethodID(cls, "onAVChannelStartIndication", "()V");
     onAVChannelStopIndicationMethodId_ = env->GetMethodID(cls, "onAVChannelStopIndication", "()V");
 
     env->DeleteLocalRef(cls);
+}
+
+void JVideoEventHandler::onAVChannelStartIndication() {
+    JNIEnv* env = getJniEnv();
+    env->CallVoidMethod(androidClass_, onAVChannelStartIndicationMethodId_);
 }
 
 void JVideoEventHandler::onAVChannelStopIndication() {

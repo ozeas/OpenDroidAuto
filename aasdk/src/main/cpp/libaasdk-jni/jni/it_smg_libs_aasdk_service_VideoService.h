@@ -15,9 +15,11 @@ public:
 
     void initJavaMethods() override;
 
+    void onAVChannelStartIndication() override;
     void onAVChannelStopIndication() override;
 
 private:
+    jmethodID onAVChannelStartIndicationMethodId_;
     jmethodID onAVChannelStopIndicationMethodId_;
 };
 

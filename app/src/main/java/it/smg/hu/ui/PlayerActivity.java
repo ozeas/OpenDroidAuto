@@ -194,6 +194,7 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
         IntentFilter localFilter = new IntentFilter();
         localFilter.addAction(ODAService.STOP_ACTION);
         localFilter.addAction(ODAService.STOP_VIDEO_INDICATION);
+        localFilter.addAction(ODAService.START_VIDEO_INDICATION);
         localReceiver_ = new LocalReceiver();
         localBroadcastManager_.registerReceiver(localReceiver_, localFilter);
     }
@@ -269,6 +270,11 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
 
             } else if (ODAService.STOP_VIDEO_INDICATION.equalsIgnoreCase(intent.getAction())){
                 moveTaskToBack(true);
+
+            } else if (ODAService.START_VIDEO_INDICATION.equalsIgnoreCase(intent.getAction())){
+                // Bring the projection back to the foreground when the video
+                // resumes (e.g. after a phone call ends).
+                moveTaskToFront(true);
             }
         }
     }
