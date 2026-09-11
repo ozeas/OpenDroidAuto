@@ -56,23 +56,12 @@ public class BluetoothDevice extends it.smg.libs.aasdk.projection.BluetoothDevic
     @Keep
     @Override
     public boolean pair(String address) {
-        if (Log.isInfo()) Log.i(TAG, "pair requested for address: " + address);
-
-        if (address == null || address.trim().isEmpty()) {
-            if (Log.isWarn()) Log.w(TAG, "pair: empty address, cannot bond");
-            return false;
-        }
-
-        try {
-            android.bluetooth.BluetoothDevice remote = bluetoothAdapter_.getRemoteDevice(address);
-            if (Log.isInfo()) Log.i(TAG, "initiating createBond with " + address);
-            boolean started = remote.createBond();
-            if (Log.isInfo()) Log.i(TAG, "createBond result: " + started);
-            return started;
-        } catch (Exception e) {
-            Log.e(TAG, "pair error for " + address, e);
-            return false;
-        }
+        // Na central Honda Connect o Bluetooth é gerido pela Fujitsu: o
+        // pareamento deve ser feito pelo Bluetooth NATIVO do carro (não via
+        // createBond(), que falha com "PIN incorreto" e não abre janela no
+        // telefone). O telefone precisa já estar pareado na central.
+        if (Log.isInfo()) Log.i(TAG, "pair requested for address: " + address + " (native BT pairing, no createBond)");
+        return true;
     }
 
     @Keep
