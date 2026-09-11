@@ -56,10 +56,23 @@ public class BluetoothDevice extends it.smg.libs.aasdk.projection.BluetoothDevic
     @Keep
     @Override
     public boolean pair(String address) {
-        // Phase A: instrumentação. O pareamento real (createBond) será
-        // implementado na Fase B após confirmar o fluxo no log.
-        if (Log.isInfo()) Log.i(TAG, "pair requested for address: " + address + " (no-op na Fase A)");
-        return true;
+        if (Log.isInfo()) Log.i(TAG, "pair requested for address: " + address);
+
+        if (address == null || address.trim().isEmpty()) {
+            if (Log.isWarn()) Log.w(TAG, "pair: empty address, cannot bond");
+            return false;
+        }
+
+        try {
+            android.bluetooth.BluetoothDevice remote = bluetoothAdapter_.getRemoteDevice(address);
+            if (Log.isInfo()) Log.i(TAG, "initiating createBond with " + address);
+            boolean started = remote.createBond();
+            if (Log.isInfo()) Log.i(TAG, "createBond result: " + started);
+            return started;
+        } catch (Exception e) {
+            Log.e(TAG, "pair error for " + address, e);
+            return false;
+        }
     }
 
     @Keep

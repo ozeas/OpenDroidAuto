@@ -91,19 +91,36 @@ void BluetoothService::onBluetoothPairingRequest(const aasdk::proto::messages::B
 {
     if(Log::isVerbose() && Log::logProtocol()) Log_v("onBluetoothPairingRequest: %s", request.Utf8DebugString().c_str());
 
-    aasdk::proto::messages::BluetoothPairingResponse response;
-
     const auto isPaired = bluetoothDevice_->isPaired(request.phone_address());
-    response.set_already_paired(isPaired);
-    response.set_status(isPaired ? aasdk::proto::enums::BluetoothPairingStatus::OK : aasdk::proto::enums::BluetoothPairingStatus::FAIL);
+    if(Log::isInfo()) Log_i("pairing request, phone address: %s, isPaired: %d",
+                            request.phone_address().c_str(), isPaired);
 
-    if(Log::isInfo()) Log_i("pairing request, phone address: %s, isPaired: %d -> responding status: %s",
-                            request.phone_address().c_str(), isPaired,
-                            isPaired ? "OK" : "FAIL");
+    if (isPaired) {
+        sendPairingResponse(true, aasdk::proto::enums::BluetoothPairingStatus::OK);
+    } else {
+        // Initiate bonding (createBond) before responding, so the phone can
+        // establish HFP and route the call audio through the head unit.
+        auto pairingPromise = projection::IBluetoothDevice::PairingPromise::defer(strand_, "BluetoothService_pair");
+        pairingPromise->then(
+            std::bind(&BluetoothService::sendPairingResponse, this->shared_from_this(), false, aasdk::proto::enums::BluetoothPairingStatus::OK),
+            std::bind(&BluetoothService::sendPairingResponse, this->shared_from_this(), false, aasdk::proto::enums::BluetoothPairingStatus::FAIL));
+        bluetoothDevice_->pair(request.phone_address(), std::move(pairingPromise));
+    }
+}
+
+void BluetoothService::sendPairingResponse(bool alreadyPaired, aasdk::proto::enums::BluetoothPairingStatus::Enum status)
+{
+    if(Log::isInfo()) Log_i("sending pairing response, already_paired: %d, status: %s",
+                            alreadyPaired, aasdk::proto::enums::BluetoothPairingStatus::Enum_Name(status).c_str());
+
+    aasdk::proto::messages::BluetoothPairingResponse response;
+    response.set_already_paired(alreadyPaired);
+    response.set_status(status);
 
     auto promise = aasdk::channel::SendPromise::defer(strand_, "BluetoothService_pairing");
     promise->then([]() {}, std::bind(&BluetoothService::onChannelError, this->shared_from_this(), std::placeholders::_1));
     channel_->sendBluetoothPairingResponse(response, std::move(promise));
+}
 
 //    channel_->receive(this->shared_from_this());
 }

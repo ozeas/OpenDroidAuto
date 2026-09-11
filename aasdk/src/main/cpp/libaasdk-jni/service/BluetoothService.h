@@ -24,6 +24,7 @@ public:
 
 private:
     using std::enable_shared_from_this<BluetoothService>::shared_from_this;
+    void sendPairingResponse(bool alreadyPaired, aasdk::proto::enums::BluetoothPairingStatus::Enum status);
 
     aasdk::io::strand strand_;
     aasdk::channel::bluetooth::BluetoothServiceChannel::Pointer channel_;
