@@ -171,7 +171,9 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     }
 
     public void shutdown(){
-        androidAutoEntity_.shutdown();
+        if (androidAutoEntity_ != null) {
+            androidAutoEntity_.shutdown();
+        }
     }
 
     public void releaseFocus(){
@@ -181,7 +183,11 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     }
 
     public void gainFocus(){
-        androidAutoEntity_.gainFocus();
+        // Null-check: after a START_STICKY service restart the entity is null,
+        // and a stale isRunning_ in the activity would NPE here.
+        if (androidAutoEntity_ != null) {
+            androidAutoEntity_.gainFocus();
+        }
     }
 
     public void stop(){
@@ -286,9 +292,9 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
             reconnecting_ = true;
             try {
                 if (MODE_USB.equals(startMode_)) {
-                    if (usbManager_.aoapDevice() == null) {
-                        usbManager_.searchForAoapDevice();
-                    }
+                    // Reset the device to recover from a stale USB/AOAP state
+                    // after an abrupt teardown (force-stop / SSL error).
+                    usbManager_.resetDevice();
                     if (usbManager_.aoapDevice() != null) {
                         startUsb(surfaceView_, keyHolder_);
                     } else {

@@ -131,6 +131,26 @@ public class USBManager {
         }
     }
 
+    /**
+     * Fecha e recria o dispositivo AOAP a partir de um {@code UsbDevice} fresco,
+     * para recuperar de um estado USB "sujo" deixado por um encerramento abrupto
+     * (force-stop / erro SSL). Sem isso, o {@code open()} seguinte falha com
+     * "USB OPEN DEVICE".
+     */
+    public boolean resetDevice(){
+        if (usbDevice_ != null) {
+            if (Log.isInfo()) Log.i(TAG, "resetDevice: closing stale AOAP device");
+            try {
+                usbDevice_.close();
+            } catch (Exception e) {
+                if (Log.isWarn()) Log.w(TAG, "error closing stale device", e);
+            }
+            usbDevice_ = null;
+        }
+        searchForAoapDevice();
+        return usbDevice_ != null;
+    }
+
     public boolean requestAOAP(UsbDevice device){
         UsbDeviceConnection usbConnection = usbManager_.openDevice(device);
         if (usbConnection != null){
