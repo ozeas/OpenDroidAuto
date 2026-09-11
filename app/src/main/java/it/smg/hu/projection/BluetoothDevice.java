@@ -29,7 +29,7 @@ public class BluetoothDevice extends it.smg.libs.aasdk.projection.BluetoothDevic
     @Keep
     @Override
     public boolean isPaired(String address) {
-        if (Log.isDebug()) Log.d(TAG, "isPaired phoneAddress: " + address);
+        if (Log.isInfo()) Log.i(TAG, "isPaired phoneAddress: " + address);
 
         if (address != null && !address.trim().isEmpty()) {
             Set<android.bluetooth.BluetoothDevice> pairedDevices = bluetoothAdapter_.getBondedDevices();
@@ -38,22 +38,27 @@ public class BluetoothDevice extends it.smg.libs.aasdk.projection.BluetoothDevic
                 // Loop through paired devices
                 for (android.bluetooth.BluetoothDevice device : pairedDevices) {
                     // Add the name and address to an array adapter to show in a ListView
-                    if (Log.isDebug()) Log.d(TAG, "check paired device " + device.getName() + ": " + device.getAddress());
+                    if (Log.isInfo()) Log.i(TAG, "check paired device " + device.getName() + ": " + device.getAddress());
                     if (address.equalsIgnoreCase(device.getAddress())) {
-                        if (Log.isDebug()) Log.d(TAG, "found device " + device.getName());
+                        if (Log.isInfo()) Log.i(TAG, "found paired device " + device.getName());
                         return true;
                     }
                 }
+            } else {
+                if (Log.isInfo()) Log.i(TAG, "no bonded devices on the head unit");
             }
         }
 
-        if (Log.isDebug()) Log.d(TAG, "phoneAddress null or not paired");
+        if (Log.isInfo()) Log.i(TAG, "phoneAddress null or not paired -> isPaired=false");
         return false;
     }
 
     @Keep
     @Override
     public boolean pair(String address) {
+        // Phase A: instrumentação. O pareamento real (createBond) será
+        // implementado na Fase B após confirmar o fluxo no log.
+        if (Log.isInfo()) Log.i(TAG, "pair requested for address: " + address + " (no-op na Fase A)");
         return true;
     }
 
@@ -68,25 +73,27 @@ public class BluetoothDevice extends it.smg.libs.aasdk.projection.BluetoothDevic
                 if (macAddress == null){
                     macAddress = "";
                 }
+            } else {
+                macAddress = "n/a (SDK > 16)";
             }
         }
-        if (Log.isDebug()) Log.d(TAG, "localAddress: " + macAddress);
+        if (Log.isInfo()) Log.i(TAG, "localAddress: '" + macAddress + "'");
         return macAddress;
     }
 
     @Keep
     @Override
     public boolean isAvailable() {
-        if (Log.isDebug()) Log.d(TAG, "isAvailable");
+        if (Log.isInfo()) Log.i(TAG, "isAvailable check");
 
         if (bluetoothAdapter_ == null) {
-            if (Log.isWarn()) Log.w(TAG, "Device not available");
+            if (Log.isWarn()) Log.w(TAG, "BluetoothAdapter is NULL (not available)");
             return false;
         } else if (!bluetoothAdapter_.isEnabled()) {
-            if (Log.isWarn()) Log.w(TAG, "Device not enabled");
+            if (Log.isWarn()) Log.w(TAG, "Bluetooth adapter NOT enabled");
             return false;
         } else {
-            if (Log.isDebug()) Log.d(TAG, "Device enabled");
+            if (Log.isInfo()) Log.i(TAG, "Bluetooth adapter enabled");
             return true;
         }
     }

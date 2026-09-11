@@ -101,7 +101,8 @@ void AudioInputService::onAVChannelSetupRequest(const aasdk::proto::messages::AV
 void AudioInputService::onAVInputOpenRequest(const aasdk::proto::messages::AVInputOpenRequest& request)
 {
     if(Log::isVerbose() && Log::logProtocol()) Log_v("onAVInputOpenRequest: %s", request.Utf8DebugString().c_str());
-    if(Log::isDebug()) Log_d("input open request, open: %d, anc: %d, ec: %d, max unacked: ", request.open(), request.anc(), request.ec(), request.max_unacked());
+    if(Log::isInfo()) Log_i("input open request, open: %d, anc: %d, ec: %d, max_unacked: %d",
+                            request.open(), request.anc(), request.ec(), request.max_unacked());
 
     if(request.open())
     {

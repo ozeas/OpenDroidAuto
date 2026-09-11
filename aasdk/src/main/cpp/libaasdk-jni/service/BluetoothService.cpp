@@ -46,7 +46,7 @@ void BluetoothService::fillFeatures(aasdk::proto::messages::ServiceDiscoveryResp
     if(bluetoothDevice_->isAvailable())
     {
         std::string localAddress = bluetoothDevice_->getLocalAddress();
-        if(Log::isInfo()) Log_i("sending local adapter address: %s", localAddress.c_str());
+        if(Log::isInfo()) Log_i("sending local adapter address: '%s'", localAddress.c_str());
 
         auto* channelDescriptor = response.add_channels();
         channelDescriptor->set_channel_id(static_cast<uint32_t>(channel_->getId()));
@@ -62,6 +62,10 @@ void BluetoothService::fillFeatures(aasdk::proto::messages::ServiceDiscoveryResp
         }
 
         if(Log::isVerbose() && Log::logProtocol()) Log_v("%s", channelDescriptor->Utf8DebugString().c_str());
+    }
+    else
+    {
+        if(Log::isInfo()) Log_i("bluetooth device NOT available (isAvailable=false) - HFP/A2DP not advertised");
     }
 }
 
@@ -86,13 +90,16 @@ void BluetoothService::onChannelOpenRequest(const aasdk::proto::messages::Channe
 void BluetoothService::onBluetoothPairingRequest(const aasdk::proto::messages::BluetoothPairingRequest& request)
 {
     if(Log::isVerbose() && Log::logProtocol()) Log_v("onBluetoothPairingRequest: %s", request.Utf8DebugString().c_str());
-    if(Log::isDebug()) Log_d("pairing request, address: %s", request.phone_address().c_str());
 
     aasdk::proto::messages::BluetoothPairingResponse response;
 
     const auto isPaired = bluetoothDevice_->isPaired(request.phone_address());
     response.set_already_paired(isPaired);
     response.set_status(isPaired ? aasdk::proto::enums::BluetoothPairingStatus::OK : aasdk::proto::enums::BluetoothPairingStatus::FAIL);
+
+    if(Log::isInfo()) Log_i("pairing request, phone address: %s, isPaired: %d -> responding status: %s",
+                            request.phone_address().c_str(), isPaired,
+                            isPaired ? "OK" : "FAIL");
 
     auto promise = aasdk::channel::SendPromise::defer(strand_, "BluetoothService_pairing");
     promise->then([]() {}, std::bind(&BluetoothService::onChannelError, this->shared_from_this(), std::placeholders::_1));
