@@ -122,9 +122,6 @@ void BluetoothService::sendPairingResponse(bool alreadyPaired, aasdk::proto::enu
     channel_->sendBluetoothPairingResponse(response, std::move(promise));
 }
 
-//    channel_->receive(this->shared_from_this());
-}
-
 void BluetoothService::onChannelError(const aasdk::error::Error& e)
 {
     if (!isRunning_){
