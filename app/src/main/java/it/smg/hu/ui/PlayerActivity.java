@@ -1,6 +1,7 @@
 package it.smg.hu.ui;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -274,7 +275,10 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
             } else if (ODAService.START_VIDEO_INDICATION.equalsIgnoreCase(intent.getAction())){
                 // Bring the projection back to the foreground when the video
                 // resumes (e.g. after a phone call ends).
-                moveTaskToFront(true);
+                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    am.moveTaskToFront(getTaskId(), 0);
+                }
             }
         }
     }
