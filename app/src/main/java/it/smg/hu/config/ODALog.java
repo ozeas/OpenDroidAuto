@@ -11,7 +11,6 @@ import it.smg.libs.common.ILog;
 
 public class ODALog implements ILog {
 
-    private static final String PACKAGE_NAME = "it.smg.hu";
     private static final String TAG = "ODALog";
 
     private final Settings settings_;
@@ -70,33 +69,31 @@ public class ODALog implements ILog {
 
                 if (!extStoragePath.trim().isEmpty()) {
                     File extStorageDir = new File(extStoragePath);
-                    if (extStorageDir.exists()){
-                        File logDirectory = new File(extStorageDir, "logs");
-                        File logFile = new File(logDirectory, "logcat_" + System.currentTimeMillis() + ".txt");
+                    File logDirectory = new File(extStorageDir, "logs");
+                    File logFile = new File(logDirectory, "logcat_" + System.currentTimeMillis() + ".txt");
 
-                        // create log folder
-                        if (!logDirectory.exists()) {
-                            if (!logDirectory.mkdir()){
-                                w_(TAG, "log directory " + logDirectory + " doesn't created");
-                                return;
-                            }
+                    // create log folder (and parents) automatically
+                    if (!logDirectory.exists()) {
+                        if (!logDirectory.mkdirs()){
+                            w_(TAG, "log directory " + logDirectory + " couldn't be created");
+                            return;
                         }
+                    }
 
-                        // clear the previous logcat and then write the new one to the file
-                        try {
-                            v_(TAG, "start logcat process");
-                            Runtime.getRuntime().exec("logcat -c");
-                            Thread.sleep(100);
-                            String cmd = "logcat -v threadtime -f " + logFile + " " + PACKAGE_NAME + ":V";
-                            logProcess_ = Runtime.getRuntime().exec(cmd);
-                            Thread.sleep(200);
-                            v_(TAG, "started log process with cmd: " + cmd);
-                        } catch (IOException e) {
-                            e_(TAG, "error in start log process", e);
-                            _deInit();
-                        } catch (InterruptedException ignored) {
-                            _deInit();
-                        }
+                    // clear the previous logcat and then write the new one to the file
+                    try {
+                        v_(TAG, "start logcat process");
+                        Runtime.getRuntime().exec("logcat -c");
+                        Thread.sleep(100);
+                        String cmd = "logcat -v threadtime -f " + logFile + " ODA:V";
+                        logProcess_ = Runtime.getRuntime().exec(cmd);
+                        Thread.sleep(200);
+                        v_(TAG, "started log process with cmd: " + cmd);
+                    } catch (IOException e) {
+                        e_(TAG, "error in start log process", e);
+                        _deInit();
+                    } catch (InterruptedException ignored) {
+                        _deInit();
                     }
                 }
             } else if (isExternalStorageReadable()) {
