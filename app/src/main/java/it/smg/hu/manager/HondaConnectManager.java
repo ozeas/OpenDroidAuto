@@ -571,6 +571,12 @@ public class HondaConnectManager {
     private void registerModeMgrCallback(){
         if (Log.isDebug()) Log.d(TAG, "registerModeMgrCallback");
         if (modeMgrManager_ != null) {
+            if (modeMgrServiceCallBack_ != null) {
+                // Already registered with this ModeMgr instance; re-registering
+                // on every onResume would leak callbacks.
+                if (Log.isVerbose()) Log.v(TAG, "registerModeMgrCallback already registered, skip");
+                return;
+            }
             int idx = settings_.advanced.modeMgrAudioIdx();
             if (Log.isVerbose()) Log.v(TAG, "registerModeMgrCallback idx " + idx);
             modeMgrServiceCallBack_ = new ModeMgrServiceCallBack();
