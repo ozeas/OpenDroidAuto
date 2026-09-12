@@ -144,6 +144,7 @@ public class AudioInput extends it.smg.libs.aasdk.projection.AudioInput {
 
                 if (Log.isDebug()) Log.d(TAG, "release audioRecord");
                 audioRecord_.release();
+                audioRecord_ = null;
             }
 
             isActive_ = false;

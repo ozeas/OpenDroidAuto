@@ -344,6 +344,18 @@ public class ODAService extends Service implements IAndroidAutoEntityEventHandle
     @Override
     public void onAVChannelStartIndication() {
         if (Log.isInfo()) Log.i(TAG, "start video indication");
+        // Bring the projection activity back to the foreground. The activity's
+        // own receiver may be alive but paused; driving it from the always-alive
+        // service is the most reliable path.
+        mainHandler_.post(() -> {
+            try {
+                Intent intent = new Intent(ODAService.this, it.smg.hu.ui.PlayerActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                Log.e(TAG, "error bringing PlayerActivity to front", e);
+            }
+        });
         Intent startIntent = new Intent(ODAService.START_VIDEO_INDICATION);
         localBroadcastManager_.sendBroadcast(startIntent);
     }

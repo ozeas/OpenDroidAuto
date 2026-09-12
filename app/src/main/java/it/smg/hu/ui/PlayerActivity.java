@@ -72,6 +72,11 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
         }
 
         surfaceView_ = findViewById(R.id.surfaceView);
+
+        // Register the local receiver for the whole activity lifetime, so it
+        // still receives START_VIDEO_INDICATION while the app is minimized
+        // (e.g. during a phone call).
+        initReceivers();
     }
 
     @Override
@@ -132,7 +137,6 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
         NotificationFactory.instance().dismissAll();
         AppBadge.instance().dismiss();
 
-        initReceivers();
         isActive_ = true;
     }
 
@@ -152,7 +156,6 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
 
         AppBadge.instance().show();
 
-        localBroadcastManager_.unregisterReceiver(localReceiver_);
         isActive_ = false;
     }
 
@@ -188,6 +191,12 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
     protected void onDestroy() {
         super.onDestroy();
         if (Log.isDebug()) Log.d(TAG, "onDestroy");
+        if (localReceiver_ != null) {
+            try {
+                localBroadcastManager_.unregisterReceiver(localReceiver_);
+            } catch (IllegalArgumentException ignored) {}
+            localReceiver_ = null;
+        }
     }
 
     private void initReceivers(){

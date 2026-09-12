@@ -71,7 +71,9 @@ public class NativeVideoOutput extends VideoOutput implements Runnable {
     @Override
     public void write(long timestamp, ByteBuffer buf) {
         if (configured_ && running_) {
-            int index = codec_.dequeueInputBuffer(3000000);
+            // Bounded wait (100ms): a 3s wait on a missing input buffer stalls
+            // the whole decode pipeline.
+            int index = codec_.dequeueInputBuffer(100000);
             if (index >= 0) {
                 ByteBuffer buffer;
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
@@ -96,9 +98,12 @@ public class NativeVideoOutput extends VideoOutput implements Runnable {
         if (running_) {
             running_ = false;
             configured_ = false;
+            codecThread_.interrupt();
             try {
-                codecThread_.join();
-            } catch (InterruptedException ignored) {}
+                codecThread_.join(1000);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
 
             codec_.flush();
             codec_.stop();
@@ -113,7 +118,9 @@ public class NativeVideoOutput extends VideoOutput implements Runnable {
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         while (running_) {
             if (configured_) {
-                int index = codec_.dequeueOutputBuffer(info, 0);
+                // 10ms timeout instead of 0: a 0 timeout makes this a 100% CPU
+                // busy-loop when no output buffer is ready.
+                int index = codec_.dequeueOutputBuffer(info, 10000);
                 if (index >= 0) {
                     if (Log.isVerbose()) Log.v(TAG, "outputBufferIndex: " + index);
                     ByteBuffer buffer = null;

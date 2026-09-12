@@ -25,6 +25,11 @@ public class AudioCodec implements IAudioCodec, Runnable {
     private final LinkedBlockingQueue<byte[]> queue_;
     private Thread codecThread_;
 
+    // Bound the playback queue so audio latency stays constant: if the phone
+    // pushes faster than the track drains, drop the oldest buffers instead of
+    // growing unbounded (which shows up as ever-increasing lip-sync delay).
+    private static final int MAX_QUEUE_SIZE = 64;
+
     public AudioCodec(String name, int streamType, int sampleRate, int channelConfig, int sampleSize){
         name_ = name;
         streamType_ = streamType;
@@ -66,11 +71,13 @@ public class AudioCodec implements IAudioCodec, Runnable {
 
     @Override
     public void write(ByteBuffer buffer, long timestamp) {
-        if (Log.isVerbose()) Log.v(TAG, "buffer size: " + buffer.limit());
         final int size = buffer.limit();
         final byte[] data = new byte[size];
         buffer.get(data);
 
+        while (queue_.size() >= MAX_QUEUE_SIZE) {
+            queue_.poll();
+        }
         queue_.offer(data);
     }
 
@@ -78,32 +85,43 @@ public class AudioCodec implements IAudioCodec, Runnable {
     public void start() {
         if (Log.isInfo()) Log.i(TAG, "Start");
 
-        codecThread_ = new Thread(this);
-        codecThread_.setName(name_);
-        codecThread_.start();
-
+        // Set running BEFORE starting the thread (a thread started first can see
+        // running==false and exit immediately).
         running_.set(true);
+
+        if (codecThread_ == null || !codecThread_.isAlive()) {
+            codecThread_ = new Thread(this);
+            codecThread_.setName(name_);
+            codecThread_.start();
+        } else if (audioTrack_ != null && audioTrack_.getPlayState() != AudioTrack.PLAYSTATE_PLAYING) {
+            try {
+                audioTrack_.play();
+            } catch (IllegalStateException ignored) {}
+        }
     }
 
     @Override
     public void stop() {
         if (Log.isInfo()) Log.i(TAG, "Stop");
-        if (running_.get()) {
-            running_.set(false);
+        if (!running_.getAndSet(false)) {
+            return;
+        }
 
-            if (codecThread_ != null){
-                try {
-                    codecThread_.join(1000);
-                    if (Log.isDebug()) Log.d(TAG + "_" + codecThread_.getName(), "thread joined");
-                } catch (InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                }
+        if (codecThread_ != null){
+            codecThread_.interrupt();
+            try {
+                codecThread_.join(1000);
+                if (Log.isDebug()) Log.d(TAG + "_" + codecThread_.getName(), "thread joined");
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            if (!codecThread_.isAlive()) {
                 codecThread_ = null;
             }
-
-            queue_.clear();
-            if (Log.isDebug()) Log.d(TAG, "queue empty");
         }
+
+        queue_.clear();
+        if (Log.isDebug()) Log.d(TAG, "queue empty");
     }
 
     @Override

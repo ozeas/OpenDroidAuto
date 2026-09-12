@@ -427,22 +427,28 @@ public class HondaConnectManager {
             return;
         }
 
-        if (boundToEcNcService_) {
-            if (micVrStarted_){
-                if (Log.isWarn()) Log.w(TAG, "mic session already started");
-                return;
+        if (boundToEcNcService_ && ecNcServiceIface_ != null) {
+            // If a previous session was not cleanly ended (endVr failed or was
+            // never called), force it closed first — otherwise the VR session
+            // stays "already started" and the mic never works again (Gemini
+            // responds once and then stops).
+            if (micVrStarted_) {
+                if (Log.isWarn()) Log.w(TAG, "mic session still marked started, forcing endVr before startVR");
+                try {
+                    ecNcServiceIface_.endVr();
+                } catch (RemoteException e) {
+                    Log.e(TAG, "endVr (pre-start) exception", e);
+                }
+                micVrStarted_ = false;
             }
 
             try {
                 int ret = ecNcServiceIface_.startVR(true);
-                if (Log.isDebug()) {
-                    Log.d(TAG, "ecNcServiceIface_ startVR ret= " + ret);
-//                    mainHandler_.post(() -> {
-//                        Toast.makeText(context_, "ecNcServiceIface_ startVR ret= " + ret, Toast.LENGTH_SHORT).show();
-//                    });
-                }
+                if (Log.isDebug()) Log.d(TAG, "ecNcServiceIface_ startVR ret= " + ret);
                 if (ret == 0) {
                     micVrStarted_ = true;
+                } else {
+                    Log.w(TAG, "startVR failed with ret=" + ret);
                 }
             } catch (RemoteException e) {
                 Log.e(TAG, "startVR exception", e);
@@ -457,27 +463,21 @@ public class HondaConnectManager {
             return;
         }
 
-        if (boundToEcNcService_) {
+        if (boundToEcNcService_ && ecNcServiceIface_ != null) {
             if (!micVrStarted_) {
-                Log.w(TAG, "no mic session started, return");
+                if (Log.isDebug()) Log.d(TAG, "no mic session started, return");
                 return;
             }
 
             try {
                 int ret = ecNcServiceIface_.endVr();
-                if (Log.isDebug()) {
-                    Log.d(TAG, "ecNcServiceIface_ endVr ret= " + ret);
-//                    mainHandler_.post(() -> {
-//                        Toast.makeText(context_, "ecNcServiceIface_ endVr ret= " + ret, Toast.LENGTH_SHORT).show();
-//                    });
-                }
-                if (ret == 0) {
-                    micVrStarted_ = false;
-                }
+                if (Log.isDebug()) Log.d(TAG, "ecNcServiceIface_ endVr ret= " + ret);
             } catch (RemoteException e) {
                 Log.e(TAG, "endVr exception", e);
             }
-
+            // Reset regardless of the endVr result, so a failed endVr never
+            // leaves the session permanently "started".
+            micVrStarted_ = false;
         }
     }
 
