@@ -282,11 +282,16 @@ public class PlayerActivity extends Activity implements ServiceConnection, Surfa
                 moveTaskToBack(true);
 
             } else if (ODAService.START_VIDEO_INDICATION.equalsIgnoreCase(intent.getAction())){
-                // Bring the projection back to the foreground when the video
-                // resumes (e.g. after a phone call ends).
-                ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-                if (am != null) {
-                    am.moveTaskToFront(getTaskId(), 0);
+                // Bring the projection back to the foreground only when it is
+                // actually backgrounded (e.g. after a phone call). Doing it
+                // while already in front re-triggers the activity lifecycle,
+                // which re-negotiates the video focus and restarts the video
+                // in an endless loop (blinking dark screen).
+                if (!isActive_) {
+                    ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+                    if (am != null) {
+                        am.moveTaskToFront(getTaskId(), 0);
+                    }
                 }
             }
         }
